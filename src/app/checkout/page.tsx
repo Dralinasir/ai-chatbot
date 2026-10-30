@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/cart-provider";
 import {
   ShoppingBag,
@@ -10,12 +9,11 @@ import {
   MapPin,
   Truck,
   ShieldCheck,
+  CheckCircle,
 } from "lucide-react";
 
 export default function CheckoutPage() {
-  const router = useRouter();
-
-  const { items, subtotal } = useCart();
+  const { items, subtotal, clearCart } = useCart();
 
   const [form, setForm] = useState({
     fullName: "",
@@ -29,6 +27,11 @@ export default function CheckoutPage() {
 
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(
+    null
+  );
 
   const formatPrice = (price: number) =>
     `Rs. ${price.toLocaleString("en-PK")}`;
@@ -47,7 +50,7 @@ export default function CheckoutPage() {
     });
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
 
@@ -71,11 +74,92 @@ export default function CheckoutPage() {
       return;
     }
 
-    setError(
-      "Checkout details are valid, but order placement is not connected yet. Database integration is the next step."
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...form,
+          items: items.map((item) => ({
+            id: String(item.id),
+            name: item.name,
+            price: Number(item.price),
+            quantity: Number(item.quantity),
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to place your order.");
+      }
+
+      if (!data.success || !data.orderNumber) {
+        throw new Error("The server returned an invalid order response.");
+      }
+
+      // Save the total BEFORE clearing the cart.
+      setConfirmedTotal(total);
+      setOrderNumber(data.orderNumber);
+
+      // Clear cart only after successful order placement.
+      clearCart();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Order confirmation
+  if (orderNumber) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600">
+          <CheckCircle size={45} />
+        </div>
+
+        <h1 className="mt-7 text-3xl font-bold">
+          Order Placed Successfully!
+        </h1>
+
+        <p className="mt-3 max-w-md text-sm leading-7 text-gray-500">
+          Thank you for shopping with FashionAI. Your Cash on Delivery
+          order has been saved successfully.
+        </p>
+
+        <div className="mt-8 w-full max-w-md border border-gray-200 p-6">
+          <p className="text-xs font-semibold tracking-widest text-gray-500">
+            YOUR ORDER NUMBER
+          </p>
+
+          <p className="mt-3 text-xl font-bold">{orderNumber}</p>
+
+          <p className="mt-4 text-sm text-gray-500">
+            Total: {formatPrice(confirmedTotal ?? total)}
+          </p>
+        </div>
+
+        <Link
+          href="/products"
+          className="mt-8 bg-black px-8 py-4 text-xs font-bold tracking-widest text-white hover:bg-gray-800"
+        >
+          CONTINUE SHOPPING
+        </Link>
+      </main>
     );
   }
 
+  // Empty cart
   if (items.length === 0) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 text-center">
@@ -102,8 +186,6 @@ export default function CheckoutPage() {
   return (
     <main className="min-h-screen bg-[#f8f8f8] px-4 py-12 text-black sm:px-8">
       <div className="mx-auto max-w-7xl">
-
-        {/* Header */}
         <div className="mb-10">
           <Link
             href="/cart"
@@ -113,9 +195,7 @@ export default function CheckoutPage() {
             BACK TO CART
           </Link>
 
-          <h1 className="mt-6 text-4xl font-bold">
-            Checkout
-          </h1>
+          <h1 className="mt-6 text-4xl font-bold">Checkout</h1>
 
           <p className="mt-3 text-sm text-gray-500">
             Complete your delivery details to continue.
@@ -124,10 +204,7 @@ export default function CheckoutPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-10 lg:grid-cols-[1fr_400px]">
-
-            {/* Customer Details */}
             <div className="space-y-8">
-
               <section className="bg-white p-6 shadow-sm sm:p-8">
                 <div className="mb-7 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center bg-gray-100">
@@ -146,7 +223,6 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
-
                   <div className="sm:col-span-2">
                     <label className="mb-2 block text-xs font-semibold">
                       Full Name *
@@ -266,11 +342,8 @@ export default function CheckoutPage() {
                 </div>
               </section>
 
-              {/* Payment */}
               <section className="bg-white p-6 shadow-sm sm:p-8">
-                <h2 className="text-lg font-bold">
-                  Payment Method
-                </h2>
+                <h2 className="text-lg font-bold">Payment Method</h2>
 
                 <p className="mt-2 text-xs text-gray-500">
                   Select your preferred payment option.
@@ -282,9 +355,7 @@ export default function CheckoutPage() {
                     name="payment"
                     value="cod"
                     checked={paymentMethod === "cod"}
-                    onChange={(e) =>
-                      setPaymentMethod(e.target.value)
-                    }
+                    onChange={(e) => setPaymentMethod(e.target.value)}
                     className="h-4 w-4 accent-black"
                   />
 
@@ -303,7 +374,6 @@ export default function CheckoutPage() {
               </section>
             </div>
 
-            {/* Order Summary */}
             <aside className="h-fit bg-white p-6 shadow-sm sm:p-8">
               <h2 className="border-b border-gray-200 pb-5 text-lg font-bold">
                 Your Order
@@ -311,10 +381,7 @@ export default function CheckoutPage() {
 
               <div className="max-h-[400px] space-y-5 overflow-y-auto py-6">
                 {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-4"
-                  >
+                  <div key={item.id} className="flex gap-4">
                     <div className="relative h-20 w-16 flex-shrink-0 bg-gray-100">
                       <img
                         src={item.image}
@@ -346,33 +413,22 @@ export default function CheckoutPage() {
 
               <div className="space-y-4 border-t border-gray-200 py-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    Subtotal
-                  </span>
-
+                  <span className="text-gray-500">Subtotal</span>
                   <span className="font-semibold">
                     {formatPrice(subtotal)}
                   </span>
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    Shipping
-                  </span>
-
+                  <span className="text-gray-500">Shipping</span>
                   <span className="font-semibold">
-                    {shipping === 0
-                      ? "FREE"
-                      : formatPrice(shipping)}
+                    {shipping === 0 ? "FREE" : formatPrice(shipping)}
                   </span>
                 </div>
 
                 <div className="border-t border-gray-200 pt-5">
                   <div className="flex justify-between">
-                    <span className="font-bold">
-                      TOTAL
-                    </span>
-
+                    <span className="font-bold">TOTAL</span>
                     <span className="text-xl font-bold">
                       {formatPrice(total)}
                     </span>
@@ -388,9 +444,12 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                className="w-full bg-black px-6 py-5 text-xs font-bold tracking-[0.2em] text-white transition hover:bg-gray-800"
+                disabled={isSubmitting}
+                className="w-full bg-black px-6 py-5 text-xs font-bold tracking-[0.2em] text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                CONTINUE TO PLACE ORDER
+                {isSubmitting
+                  ? "PLACING YOUR ORDER..."
+                  : "CONTINUE TO PLACE ORDER"}
               </button>
 
               <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-500">
