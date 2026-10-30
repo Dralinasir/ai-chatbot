@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/components/cart/cart-provider";
 import {
   ShoppingBag,
@@ -12,124 +13,107 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const products = [
-  {
-    id: 1,
-    name: "Classic Oversized Tee",
-    category: "Clothing",
-    price: 2499,
-    oldPrice: 3200,
-    color: "bg-stone-200",
-    image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=700&q=85",
-    tag: "BESTSELLER",
-  },
-  {
-    id: 2,
-    name: "Minimal Everyday Sneakers",
-    category: "Shoes",
-    price: 6499,
-    oldPrice: 7999,
-    color: "bg-neutral-100",
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=700&q=85",
-    tag: "POPULAR",
-  },
-  {
-    id: 3,
-    name: "Premium Leather Bag",
-    category: "Accessories",
-    price: 4999,
-    oldPrice: null,
-    color: "bg-amber-100",
-    image:
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=700&q=85",
-    tag: "NEW",
-  },
-  {
-    id: 4,
-    name: "Everyday Streetwear Hoodie",
-    category: "Clothing",
-    price: 4299,
-    oldPrice: 5200,
-    color: "bg-stone-200",
-    image:
-      "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=700&q=85",
-    tag: "SALE",
-  },
-  {
-    id: 5,
-    name: "Modern Wrist Watch",
-    category: "Accessories",
-    price: 5499,
-    oldPrice: null,
-    color: "bg-neutral-100",
-    image:
-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=700&q=85",
-    tag: "TRENDING",
-  },
-  {
-    id: 6,
-    name: "Essential White Sneakers",
-    category: "Shoes",
-    price: 5999,
-    oldPrice: null,
-    color: "bg-stone-100",
-    image:
-      "https://images.unsplash.com/photo-1495555961986-6d4c1ecb7be3?w=700&q=85",
-    tag: "POPULAR",
-  },
-  {
-    id: 7,
-    name: "Everyday Shoulder Bag",
-    category: "Accessories",
-    price: 3799,
-    oldPrice: 4500,
-    color: "bg-orange-50",
-    image:
-      "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=700&q=85",
-    tag: "SALE",
-  },
-  {
-    id: 8,
-    name: "Relaxed Fit Casual Shirt",
-    category: "Clothing",
-    price: 3299,
-    oldPrice: null,
-    color: "bg-stone-100",
-    image:
-      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=700&q=85",
-    tag: "NEW",
-  },
-];
+type Product = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  category: string;
+  gender?: "Male" | "Female" | "Unisex";
+  price: number | string;
+  compare_at_price: number | string | null;
+  image_url: string | null;
+  stock_quantity: number;
+  is_active: boolean;
+};
 
-const categories = ["All", "Clothing", "Shoes", "Accessories"];
+const fallbackImage =
+  "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=900";
+
+const genderOptions = ["All", "Male", "Female", "Unisex"];
 
 export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [activeCategory, setActiveCategory] = useState("All");
+  const [activeGender, setActiveGender] = useState("All");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("featured");
   const [favorites, setFavorites] = useState<number[]>([]);
 
   const { addToCart, cartCount } = useCart();
 
+  async function loadProducts() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch("/api/products", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Unable to load products.");
+      }
+
+      setProducts(
+        Array.isArray(data.products)
+          ? data.products.filter(
+              (product: Product) => product.is_active
+            )
+          : []
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while loading products."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const categories = [
+    "All",
+    ...Array.from(new Set(products.map((product) => product.category))),
+  ];
+
   const filteredProducts = products
     .filter((product) => {
+      const productGender = product.gender || "Unisex";
+
+      const matchesGender =
+        activeGender === "All" ||
+        (activeGender === "Male" &&
+          (productGender === "Male" || productGender === "Unisex")) ||
+        (activeGender === "Female" &&
+          (productGender === "Female" || productGender === "Unisex")) ||
+        (activeGender === "Unisex" && productGender === "Unisex");
+
       const matchesCategory =
         activeCategory === "All" ||
         product.category === activeCategory;
 
-      const matchesSearch = product.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const matchesSearch =
+        product.name.toLowerCase().includes(search.toLowerCase()) ||
+        product.category.toLowerCase().includes(search.toLowerCase());
 
-      return matchesCategory && matchesSearch;
+      return matchesGender && matchesCategory && matchesSearch;
     })
     .sort((a, b) => {
-      if (sort === "low") return a.price - b.price;
-      if (sort === "high") return b.price - a.price;
+      if (sort === "low") return Number(a.price) - Number(b.price);
+      if (sort === "high") return Number(b.price) - Number(a.price);
       if (sort === "name") return a.name.localeCompare(b.name);
-      return a.id - b.id;
+      return Number(b.id) - Number(a.id);
     });
 
   function toggleFavorite(id: number) {
@@ -140,13 +124,13 @@ export default function ProductsPage() {
     );
   }
 
-  function handleAddToCart(product: (typeof products)[number]) {
+  function handleAddToCart(product: Product) {
     addToCart({
-      id: product.id,
+      id: Number(product.id),
       name: product.name,
       category: product.category,
-      price: product.price,
-      image: product.image,
+      price: Number(product.price),
+      image: product.image_url || fallbackImage,
     });
   }
 
@@ -166,21 +150,18 @@ export default function ProductsPage() {
             <Link href="/" className="transition hover:text-neutral-500">
               Home
             </Link>
-
             <Link
               href="/products"
               className="font-semibold underline underline-offset-8"
             >
               Shop All
             </Link>
-
             <Link
               href="/#collections"
               className="transition hover:text-neutral-500"
             >
               Collections
             </Link>
-
             <Link
               href="/assistant"
               className="transition hover:text-neutral-500"
@@ -237,33 +218,60 @@ export default function ProductsPage() {
           </div>
 
           <div className="text-sm text-neutral-500">
-            {filteredProducts.length} products
+            {loading ? "Loading..." : `${filteredProducts.length} products`}
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 pb-16 md:px-8">
-        <div className="mb-8 flex flex-col gap-4 border-y border-neutral-200 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`rounded-full border px-5 py-2.5 text-sm transition ${
-                  activeCategory === category
-                    ? "border-neutral-950 bg-neutral-950 text-white"
-                    : "border-neutral-300 bg-transparent hover:border-neutral-950"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
+        <div className="mb-8 space-y-5 border-y border-neutral-200 py-5">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-500">
+              Shop by gender
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {genderOptions.map((gender) => (
+                <button
+                  key={gender}
+                  onClick={() => setActiveGender(gender)}
+                  className={`rounded-full border px-5 py-2.5 text-sm transition ${
+                    activeGender === gender
+                      ? "border-neutral-950 bg-neutral-950 text-white"
+                      : "border-neutral-300 hover:border-neutral-950"
+                  }`}
+                >
+                  {gender}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-500">
+              Shop by category
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                  className={`rounded-full border px-5 py-2.5 text-sm transition ${
+                    activeCategory === category
+                      ? "border-neutral-950 bg-neutral-950 text-white"
+                      : "border-neutral-300 hover:border-neutral-950"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-2.5">
               <Search size={17} className="text-neutral-500" />
-
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -274,7 +282,6 @@ export default function ProductsPage() {
 
             <label className="flex items-center gap-2 rounded-full border border-neutral-300 px-4 py-2.5">
               <SlidersHorizontal size={16} />
-
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
@@ -290,92 +297,126 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {loading && (
+          <div className="py-20 text-center text-sm text-neutral-500">
+            Loading products from database...
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="py-20 text-center">
+            <p className="text-sm text-red-600">{error}</p>
+            <button
+              onClick={loadProducts}
+              className="mt-5 bg-neutral-950 px-6 py-3 text-sm text-white"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && filteredProducts.length > 0 && (
           <div className="grid grid-cols-1 gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-            {filteredProducts.map((product) => (
-              <article key={product.id} className="group">
-                <div
-                  className={`relative aspect-[4/5] overflow-hidden ${product.color}`}
-                >
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                  />
+            {filteredProducts.map((product) => {
+              const price = Number(product.price);
+              const oldPrice = Number(product.compare_at_price || 0);
 
-                  <span className="absolute left-3 top-3 bg-white px-3 py-1.5 text-[10px] font-semibold tracking-[0.15em]">
-                    {product.tag}
-                  </span>
+              return (
+                <article key={product.id} className="group">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                    <Link href={`/products/${product.slug}`}>
+                      <img
+                        src={product.image_url || fallbackImage}
+                        alt={product.name}
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    </Link>
 
-                  <button
-                    onClick={() => toggleFavorite(product.id)}
-                    aria-label={
-                      favorites.includes(product.id)
-                        ? "Remove from favorites"
-                        : "Add to favorites"
-                    }
-                    className="absolute right-3 top-3 rounded-full bg-white p-2.5 transition hover:bg-neutral-900 hover:text-white"
-                  >
-                    <Heart
-                      size={17}
-                      fill={
-                        favorites.includes(product.id)
-                          ? "currentColor"
-                          : "none"
-                      }
-                    />
-                  </button>
-
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    className="absolute bottom-3 left-3 right-3 bg-white py-3 text-sm font-medium opacity-100 shadow-sm transition duration-300 hover:bg-neutral-900 hover:text-white"
-                  >
-                    + Quick Add
-                  </button>
-                </div>
-
-                <div className="pt-4">
-                  <p className="mb-2 text-xs uppercase tracking-[0.15em] text-neutral-500">
-                    {product.category}
-                  </p>
-
-                  <h2 className="font-medium">{product.name}</h2>
-
-                  <div className="mt-2 flex items-center gap-3 text-sm">
-                    <span className="font-semibold">
-                      Rs. {product.price.toLocaleString("en-PK")}
+                    <span className="absolute left-3 top-3 bg-white px-3 py-1.5 text-[10px] font-semibold tracking-[0.15em]">
+                      {oldPrice > price ? "SALE" : "NEW ARRIVAL"}
                     </span>
 
-                    {product.oldPrice && (
-                      <span className="text-neutral-400 line-through">
-                        Rs. {product.oldPrice.toLocaleString("en-PK")}
-                      </span>
-                    )}
+                    <button
+                      onClick={() => toggleFavorite(Number(product.id))}
+                      aria-label={
+                        favorites.includes(Number(product.id))
+                          ? "Remove from favorites"
+                          : "Add to favorites"
+                      }
+                      className="absolute right-3 top-3 rounded-full bg-white p-2.5 transition hover:bg-neutral-900 hover:text-white"
+                    >
+                      <Heart
+                        size={17}
+                        fill={
+                          favorites.includes(Number(product.id))
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                    </button>
+
+                    <button
+                      onClick={() => handleAddToCart(product)}
+                      disabled={product.stock_quantity <= 0}
+                      className="absolute bottom-3 left-3 right-3 bg-white py-3 text-sm font-medium shadow-sm transition hover:bg-neutral-900 hover:text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+                    >
+                      {product.stock_quantity <= 0
+                        ? "OUT OF STOCK"
+                        : "+ Quick Add"}
+                    </button>
                   </div>
 
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    className="mt-4 flex w-full items-center justify-center gap-2 border border-neutral-300 py-3 text-sm transition hover:border-neutral-950 hover:bg-neutral-950 hover:text-white"
-                  >
-                    <ShoppingBag size={16} />
-                    Add to Cart
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <div className="pt-4">
+                    <p className="mb-2 text-xs uppercase tracking-[0.15em] text-neutral-500">
+                      {product.category} · {product.gender || "Unisex"}
+                    </p>
+
+                    <Link href={`/products/${product.slug}`}>
+                      <h2 className="font-medium transition hover:text-neutral-500">
+                        {product.name}
+                      </h2>
+                    </Link>
+
+                    <div className="mt-2 flex items-center gap-3 text-sm">
+                      <span className="font-semibold">
+                        Rs. {price.toLocaleString("en-PK")}
+                      </span>
+
+                      {oldPrice > price && (
+                        <span className="text-neutral-400 line-through">
+                          Rs. {oldPrice.toLocaleString("en-PK")}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => handleAddToCart(product)}
+                      disabled={product.stock_quantity <= 0}
+                      className="mt-4 flex w-full items-center justify-center gap-2 border border-neutral-300 py-3 text-sm transition hover:border-neutral-950 hover:bg-neutral-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <ShoppingBag size={16} />
+                      Add to Cart
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
-        ) : (
+        )}
+
+        {!loading && !error && filteredProducts.length === 0 && (
           <div className="py-20 text-center">
             <p className="text-xl">No products found</p>
-
             <p className="mt-2 text-sm text-neutral-500">
-              Try another search or choose a different category.
+              There are no matching database products. Try another filter or
+              add products from your admin dashboard.
             </p>
 
             <button
               onClick={() => {
                 setSearch("");
                 setActiveCategory("All");
+                setActiveGender("All");
               }}
               className="mt-5 underline underline-offset-4"
             >
@@ -408,7 +449,7 @@ export default function ProductsPage() {
         </p>
 
         <p className="mt-6 text-xs text-neutral-500">
-          © {new Date().getFullYear()} FashionAI. Portfolio project.
+          © {new Date().getFullYear()} FashionAI. All rights reserved.
         </p>
       </footer>
     </main>
