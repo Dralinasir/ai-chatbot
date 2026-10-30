@@ -23,14 +23,14 @@ const collections = [
     name: "Women's Collection",
     description: "Effortless style for every moment.",
     image:
-      "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200",
+      "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=1200",
     link: "/products",
   },
   {
     name: "Men's Collection",
     description: "Modern essentials, timeless looks.",
     image:
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1200",
+      "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=1200",
     link: "/products",
   },
 ];
@@ -218,12 +218,14 @@ export default function Home() {
   }
 
   const maleProducts = products.filter(
-    (product) => (product.gender || "Unisex") === "Male" ||
+    (product) =>
+      (product.gender || "Unisex") === "Male" ||
       (product.gender || "Unisex") === "Unisex"
   );
 
   const femaleProducts = products.filter(
-    (product) => (product.gender || "Unisex") === "Female" ||
+    (product) =>
+      (product.gender || "Unisex") === "Female" ||
       (product.gender || "Unisex") === "Unisex"
   );
 
@@ -290,10 +292,16 @@ export default function Home() {
             </p>
 
             <div className="mt-9 flex flex-wrap gap-4">
-              <a href="/products" className="bg-white px-8 py-4 text-xs font-bold tracking-widest text-black transition hover:bg-gray-200">
+              <a
+                href="/products"
+                className="bg-white px-8 py-4 text-xs font-bold tracking-widest text-black transition hover:bg-gray-200"
+              >
                 EXPLORE COLLECTION
               </a>
-              <a href="/products" className="border border-white px-8 py-4 text-xs font-bold tracking-widest text-white transition hover:bg-white hover:text-black">
+              <a
+                href="/products"
+                className="border border-white px-8 py-4 text-xs font-bold tracking-widest text-white transition hover:bg-white hover:text-black"
+              >
                 SHOP NOW
               </a>
             </div>
@@ -329,9 +337,11 @@ export default function Home() {
           <p className="text-xs font-semibold tracking-[0.3em] text-gray-500">
             EXPLORE OUR WORLD
           </p>
+
           <h2 className="mt-4 text-3xl font-bold tracking-wider md:text-4xl">
             SHOP BY COLLECTION
           </h2>
+
           <p className="mt-4 text-sm text-gray-500">
             Find the pieces that define your style.
           </p>
@@ -349,7 +359,9 @@ export default function Home() {
                 alt={collection.name}
                 className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
               />
+
               <div className="absolute inset-0 bg-black/25 transition group-hover:bg-black/40" />
+
               <div className="absolute bottom-10 left-8 text-white">
                 <h3 className="text-3xl font-bold">{collection.name}</h3>
                 <p className="mt-2 text-sm">{collection.description}</p>
@@ -396,16 +408,22 @@ export default function Home() {
           <p className="text-xs font-semibold tracking-[0.4em] text-gray-400">
             YOUR PERSONAL FASHION ASSISTANT
           </p>
+
           <h2 className="mt-6 text-4xl font-bold leading-tight md:text-6xl">
             NOT SURE WHAT
             <br />
             LOOKS GOOD ON YOU?
           </h2>
+
           <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-gray-400">
             Explore fashion products and discover styles that match
             your preferences with our FashionAI shopping experience.
           </p>
-          <a href="/products" className="mt-9 inline-block bg-white px-10 py-4 text-xs font-bold tracking-widest text-black transition hover:bg-gray-200">
+
+          <a
+            href="/products"
+            className="mt-9 inline-block bg-white px-10 py-4 text-xs font-bold tracking-widest text-black transition hover:bg-gray-200"
+          >
             EXPLORE FASHIONAI
           </a>
         </div>
