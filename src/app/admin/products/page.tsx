@@ -20,6 +20,8 @@ import {
   X,
   Upload,
   Image as ImageIcon,
+  Search,
+  Filter,
 } from "lucide-react";
 
 type Gender = "Male" | "Female" | "Unisex";
@@ -69,7 +71,11 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+
   const [filter, setFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -424,14 +430,46 @@ export default function AdminProductsPage() {
     }
   }
 
+  // Automatically get categories from the loaded products.
+  const categories = Array.from(
+    new Set(products.map((product) => product.category))
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Search, category and status filters work together.
   const filteredProducts = products.filter((product) => {
-    if (filter === "active") return product.is_active;
-    if (filter === "inactive") return !product.is_active;
-    return true;
+    const search = searchTerm.trim().toLowerCase();
+
+    const matchesSearch =
+      !search ||
+      product.name.toLowerCase().includes(search) ||
+      product.slug.toLowerCase().includes(search) ||
+      product.category.toLowerCase().includes(search);
+
+    const matchesStatus =
+      filter === "all" ||
+      (filter === "active" && product.is_active) ||
+      (filter === "inactive" && !product.is_active);
+
+    const matchesCategory =
+      categoryFilter === "all" ||
+      product.category === categoryFilter;
+
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const activeCount = products.filter((p) => p.is_active).length;
   const inactiveCount = products.length - activeCount;
+
+  function clearFilters() {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setFilter("all");
+  }
+
+  const hasActiveFilters =
+    searchTerm.trim() !== "" ||
+    categoryFilter !== "all" ||
+    filter !== "all";
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 text-gray-900 sm:px-8">
@@ -812,12 +850,58 @@ export default function AdminProductsPage() {
         )}
 
         <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 p-5">
-            <div>
-              <h2 className="font-semibold">All Products</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                {filteredProducts.length} products shown
-              </p>
+          <div className="border-b border-gray-200 p-5">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="font-semibold">All Products</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Showing {filteredProducts.length} of {products.length} products
+                </p>
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm font-medium text-red-600 hover:text-red-800"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by product name, slug or category..."
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 text-sm outline-none focus:border-black"
+                />
+              </div>
+
+              <div className="relative">
+                <Filter
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm outline-none focus:border-black"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -850,8 +934,17 @@ export default function AdminProductsPage() {
               <Package className="mx-auto mb-3 text-gray-300" size={40} />
               <h3 className="font-semibold">No products found</h3>
               <p className="mt-2 text-sm text-gray-500">
-                Try another filter or add a product.
+                Try another search, category or status filter.
               </p>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="mt-4 rounded-lg bg-black px-5 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
