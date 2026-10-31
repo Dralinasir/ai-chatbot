@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -17,13 +18,19 @@ export type CartItem = {
   price: number;
   image: string;
   quantity: number;
+  size: string;
+  cartKey: string;
+};
+
+type CartProduct = Omit<CartItem, "quantity" | "cartKey" | "size"> & {
+  size?: string;
 };
 
 type CartContextType = {
   items: CartItem[];
-  addToCart: (product: Omit<CartItem, "quantity">) => void;
-  updateQuantity: (id: number, change: number) => void;
-  removeItem: (id: number) => void;
+  addToCart: (product: CartProduct) => void;
+  updateQuantity: (cartKey: string, change: number) => void;
+  removeItem: (cartKey: string) => void;
   clearCart: () => void;
   cartCount: number;
   subtotal: number;
@@ -32,6 +39,10 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const STORAGE_KEY = "fashionai-cart-v1";
+
+function createCartKey(id: number, size: string) {
+  return `${id}:${size}`;
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -45,7 +56,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const parsed: unknown = JSON.parse(savedCart);
 
         if (Array.isArray(parsed)) {
-          setItems(parsed as CartItem[]);
+          const migratedItems: CartItem[] = parsed.map((item) => {
+            const size =
+              typeof item.size === "string" && item.size.trim()
+                ? item.size
+                : "One Size";
+
+            return {
+              ...item,
+              size,
+              cartKey: createCartKey(Number(item.id), size),
+            };
+          });
+
+          setItems(migratedItems);
         }
       }
     } catch {
@@ -61,46 +85,62 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, hydrated]);
 
-  const addToCart = useCallback(
-    (product: Omit<CartItem, "quantity">) => {
-      setItems((currentItems) => {
-        const existing = currentItems.find((item) => item.id === product.id);
+  const addToCart = useCallback((product: CartProduct) => {
+    const size = product.size?.trim() || "One Size";
+    const cartKey = createCartKey(product.id, size);
 
-        if (existing) {
-          return currentItems.map((item) =>
-            item.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
+    setItems((currentItems) => {
+      const existing = currentItems.find(
+        (item) => item.cartKey === cartKey
+      );
+
+      if (existing) {
+        return currentItems.map((item) =>
+          item.cartKey === cartKey
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+
+      return [
+        ...currentItems,
+        {
+          ...product,
+          size,
+          cartKey,
+          quantity: 1,
+        },
+      ];
+    });
+  }, []);
+
+  const updateQuantity = useCallback(
+    (cartKey: string, change: number) => {
+      setItems((currentItems) =>
+        currentItems
+          .map((item) =>
+            item.cartKey === cartKey
+              ? { ...item, quantity: item.quantity + change }
               : item
-          );
-        }
-
-        return [...currentItems, { ...product, quantity: 1 }];
-      });
+          )
+          .filter((item) => item.quantity > 0)
+      );
     },
     []
   );
 
-  const updateQuantity = useCallback((id: number, change: number) => {
+  const removeItem = useCallback((cartKey: string) => {
     setItems((currentItems) =>
-      currentItems
-        .map((item) =>
-          item.id === id
-            ? { ...item, quantity: item.quantity + change }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  }, []);
-
-  const removeItem = useCallback((id: number) => {
-    setItems((currentItems) =>
-      currentItems.filter((item) => item.id !== id)
+      currentItems.filter((item) => item.cartKey !== cartKey)
     );
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);
 
-  const cartCount = items.reduce((count, item) => count + item.quantity, 0);
+  const cartCount = items.reduce(
+    (count, item) => count + item.quantity,
+    0
+  );
 
   const subtotal = items.reduce(
     (total, item) => total + item.price * item.quantity,

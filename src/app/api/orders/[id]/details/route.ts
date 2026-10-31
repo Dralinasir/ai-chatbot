@@ -60,12 +60,13 @@ export async function GET(
       );
     }
 
-    // Fetch purchased products
+    // Fetch purchased products including selected size
     const items = await sql`
       SELECT
         id,
         product_id,
         product_name,
+        size,
         quantity,
         unit_price,
         line_total

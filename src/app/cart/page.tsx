@@ -77,7 +77,7 @@ export default function CartPage() {
               <div className="divide-y divide-gray-200 border-y border-gray-200">
                 {items.map((item) => (
                   <div
-                    key={item.id}
+                    key={item.cartKey}
                     className="flex flex-col gap-5 py-7 sm:flex-row"
                   >
                     <div className="h-36 w-full flex-shrink-0 bg-gray-100 sm:w-32">
@@ -93,9 +93,15 @@ export default function CartPage() {
                         <p className="text-[10px] font-semibold tracking-widest text-gray-500">
                           {item.category}
                         </p>
+
                         <h3 className="mt-2 text-base font-semibold">
                           {item.name}
                         </h3>
+
+                        <p className="mt-2 text-sm text-gray-600">
+                          Size: <span className="font-semibold text-black">{item.size}</span>
+                        </p>
+
                         <p className="mt-2 text-sm font-bold">
                           {formatPrice(item.price)}
                         </p>
@@ -104,18 +110,20 @@ export default function CartPage() {
                       <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center border border-gray-300">
                           <button
-                            onClick={() => updateQuantity(item.id, -1)}
+                            onClick={() => updateQuantity(item.cartKey, -1)}
                             disabled={item.quantity <= 1}
                             aria-label="Decrease quantity"
                             className="p-3 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
                           >
                             <Minus size={14} />
                           </button>
+
                           <span className="min-w-10 text-center text-sm font-semibold">
                             {item.quantity}
                           </span>
+
                           <button
-                            onClick={() => updateQuantity(item.id, 1)}
+                            onClick={() => updateQuantity(item.cartKey, 1)}
                             aria-label="Increase quantity"
                             className="p-3 transition hover:bg-gray-100"
                           >
@@ -124,7 +132,7 @@ export default function CartPage() {
                         </div>
 
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item.cartKey)}
                           className="flex items-center gap-2 text-xs font-semibold text-gray-500 transition hover:text-red-600"
                         >
                           <Trash2 size={15} />

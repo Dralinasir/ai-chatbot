@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -29,9 +30,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
-  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(
-    null
-  );
+  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
 
   const formatPrice = (price: number) =>
     `Rs. ${price.toLocaleString("en-PK")}`;
@@ -74,6 +73,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (items.some((item) => !item.size?.trim())) {
+      setError("Please select a size for every product.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -86,8 +90,7 @@ export default function CheckoutPage() {
           ...form,
           items: items.map((item) => ({
             id: String(item.id),
-            name: item.name,
-            price: Number(item.price),
+            size: item.size,
             quantity: Number(item.quantity),
           })),
         }),
@@ -99,15 +102,16 @@ export default function CheckoutPage() {
         throw new Error(data.error || "Unable to place your order.");
       }
 
-      if (!data.success || !data.orderNumber) {
+      if (
+        !data.success ||
+        !data.orderNumber ||
+        !Number.isFinite(Number(data.total))
+      ) {
         throw new Error("The server returned an invalid order response.");
       }
 
-      // Save the total BEFORE clearing the cart.
-      setConfirmedTotal(total);
+      setConfirmedTotal(Number(data.total));
       setOrderNumber(data.orderNumber);
-
-      // Clear cart only after successful order placement.
       clearCart();
     } catch (err) {
       setError(
@@ -120,7 +124,6 @@ export default function CheckoutPage() {
     }
   }
 
-  // Order confirmation
   if (orderNumber) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 text-center">
@@ -145,7 +148,7 @@ export default function CheckoutPage() {
           <p className="mt-3 text-xl font-bold">{orderNumber}</p>
 
           <p className="mt-4 text-sm text-gray-500">
-            Total: {formatPrice(confirmedTotal ?? total)}
+            Total: {formatPrice(confirmedTotal ?? 0)}
           </p>
         </div>
 
@@ -159,7 +162,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // Empty cart
   if (items.length === 0) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 text-center">
@@ -381,7 +383,7 @@ export default function CheckoutPage() {
 
               <div className="max-h-[400px] space-y-5 overflow-y-auto py-6">
                 {items.map((item) => (
-                  <div key={item.id} className="flex gap-4">
+                  <div key={item.cartKey} className="flex gap-4">
                     <div className="relative h-20 w-16 flex-shrink-0 bg-gray-100">
                       <img
                         src={item.image}
@@ -401,6 +403,10 @@ export default function CheckoutPage() {
 
                       <p className="mt-2 text-xs text-gray-500">
                         {item.category}
+                      </p>
+
+                      <p className="mt-2 text-xs text-gray-600">
+                        Size: <span className="font-semibold text-black">{item.size}</span>
                       </p>
 
                       <p className="mt-2 text-sm font-bold">

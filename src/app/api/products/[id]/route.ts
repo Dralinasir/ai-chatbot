@@ -17,6 +17,82 @@ async function authorizeAdmin(request: NextRequest) {
   return Boolean(token && (await verifyAdminToken(token)));
 }
 
+// GET: Fetch product by ID or slug.
+export async function GET(
+  request: NextRequest,
+  { params }: RouteContext
+) {
+  try {
+    const { id } = await params;
+
+    if (!id || typeof id !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Invalid product identifier." },
+        { status: 400 }
+      );
+    }
+
+    const isNumericId = /^\d+$/.test(id);
+    const isValidSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id);
+
+    if (!isNumericId && !isValidSlug) {
+      return NextResponse.json(
+        { success: false, error: "Invalid product identifier." },
+        { status: 400 }
+      );
+    }
+
+    const products = isNumericId
+      ? await sql`
+          SELECT
+            id, name, slug, description, category, gender,
+            price, compare_at_price, image_url, stock_quantity,
+            is_active, created_at
+          FROM products
+          WHERE id = ${Number(id)}
+            AND is_active = TRUE
+          LIMIT 1
+        `
+      : await sql`
+          SELECT
+            id, name, slug, description, category, gender,
+            price, compare_at_price, image_url, stock_quantity,
+            is_active, created_at
+          FROM products
+          WHERE slug = ${id}
+            AND is_active = TRUE
+          LIMIT 1
+        `;
+
+    if (products.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Product not found." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        product: products[0],
+      },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Product GET error:", error);
+
+    return NextResponse.json(
+      { success: false, error: "Unable to fetch product." },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH: Update product details.
 export async function PATCH(
   request: NextRequest,
